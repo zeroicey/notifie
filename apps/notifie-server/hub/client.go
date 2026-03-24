@@ -85,3 +85,38 @@ func (h *Hub) ClientCount() int {
 	defer h.mu.RUnlock()
 	return len(h.Clients)
 }
+
+// ReadPump 读取客户端消息
+func (c *Client) ReadPump(h *Hub) {
+	defer func() {
+		h.Unregister <- c
+		c.Conn.Close()
+	}()
+	for {
+		_, message, err := c.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket error: %v", err)
+			}
+			break
+		}
+		// 处理客户端消息（如果有需要）
+		log.Printf("Received from %s: %s", c.ID, string(message))
+	}
+}
+
+// WritePump 向客户端写入消息
+func (c *Client) WritePump() {
+	defer c.Conn.Close()
+	for {
+		message, ok := <-c.Send
+		if !ok {
+			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			return
+		}
+		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			log.Printf("Write error: %v", err)
+			return
+		}
+	}
+}
