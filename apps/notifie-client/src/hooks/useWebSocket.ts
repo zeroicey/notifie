@@ -13,6 +13,8 @@ export function useWebSocket(serverUrl: string, onMessage: (msg: NotifyMessage) 
   const wsRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback(async () => {
+    console.log('[WebSocket] Connecting to:', serverUrl);
+
     if (wsRef.current) {
       try {
         await wsRef.current.disconnect();
@@ -20,20 +22,24 @@ export function useWebSocket(serverUrl: string, onMessage: (msg: NotifyMessage) 
     }
 
     try {
+      console.log('[WebSocket] Attempting to connect...');
       const ws = await WebSocket.connect(serverUrl);
+      console.log('[WebSocket] Connected successfully!');
       wsRef.current = ws;
       setConnected(true);
 
       ws.addListener((msg) => {
+        console.log('[WebSocket] Received message:', msg);
         try {
           const data = JSON.parse(msg as string) as NotifyMessage;
+          console.log('[WebSocket] Parsed data:', data);
           onMessage(data);
         } catch (e) {
-          console.error('Failed to parse message:', e);
+          console.error('[WebSocket] Failed to parse message:', e);
         }
       });
     } catch (e) {
-      console.error('WebSocket connection failed:', e);
+      console.error('[WebSocket] Connection failed:', e);
       setConnected(false);
     }
   }, [serverUrl, onMessage]);
