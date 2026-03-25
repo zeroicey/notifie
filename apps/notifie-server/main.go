@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/fasthttp/websocket"
+	"github.com/valyala/fasthttp"
 	"github.com/zeroicey/notifie/handler"
 	"github.com/zeroicey/notifie/hub"
 )
@@ -24,26 +25,32 @@ var (
 
 // 自定义 WebSocket 处理函数
 func wsHandler(c fiber.Ctx, h *hub.Hub) error {
-	if !websocket.IsWebSocketUpgrade(c) {
-		return c.Status(fiber.StatusUpgradeRequired).SendString("Requires WebSocket upgrade")
+	// 使用 fasthttp upgrader
+	var upgrader = websocket.FastHTTPUpgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
 	}
 
-	conn, err := websocket.Upgrade(c.Response().StdWriter(), c.Request(), nil, 1024, 0)
+	// 获取 fasthttp context
+	fctx := c.Context().(*fasthttp.RequestCtx)
+
+	err := upgrader.Upgrade(fctx, func(conn *websocket.Conn) {
+		client := &hub.Client{
+			ID:   generateClientID(),
+			Conn: conn,
+			Send: make(chan []byte, 256),
+		}
+
+		h.Register <- client
+
+		go client.WritePump()
+		go client.ReadPump(h)
+	})
+
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return err
 	}
-
-	client := &hub.Client{
-		ID:   generateClientID(),
-		Conn: conn,
-		Send: make(chan []byte, 256),
-	}
-
-	h.Register <- client
-
-	go client.WritePump()
-	go client.ReadPump(h)
 
 	return nil
 }
