@@ -27,20 +27,22 @@ var (
 var upgrader = websocket.FastHTTPUpgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-		return true // 允许所有来源
-	},
 }
 
 // 自定义 WebSocket 处理函数
 func wsHandler(c fiber.Ctx, h *hub.Hub) error {
 	log.Println("[WS] WebSocket handler called")
 
-	// 获取 fasthttp context
-	fctx := c.Context().(*fasthttp.RequestCtx)
+	// 类型断言获取 fasthttp context
+	fctx, ok := c.Context().(*fasthttp.RequestCtx)
+	if !ok {
+		log.Printf("[WS] Failed to get fasthttp context, got: %T", c.Context())
+		return fmt.Errorf("failed to get fasthttp context")
+	}
 
 	err := upgrader.Upgrade(fctx, func(conn *websocket.Conn) {
 		log.Println("[WS] WebSocket upgrade successful")
+
 		client := &hub.Client{
 			ID:   generateClientID(),
 			Conn: conn,
