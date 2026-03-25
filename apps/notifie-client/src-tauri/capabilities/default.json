@@ -9,11 +9,6 @@
     "notification:default",
     "notification:allow-is-permission-granted",
     "notification:allow-request-permission",
-    "notification:allow-notify",
-    "websocket:default",
-    "websocket:allow-connect",
-    "websocket:allow-disconnect",
-    "websocket:allow-send",
-    "websocket:allow-add-listener"
+    "notification:allow-notify"
   ]
 }
