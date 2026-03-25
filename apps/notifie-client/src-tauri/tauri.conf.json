@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "notifie-client",
+  "productName": "notifie",
   "version": "0.1.0",
-  "identifier": "icu.oicey.notifie-client",
+  "identifier": "icu.oicey.notifie",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -10,15 +10,24 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "title": "notifie-client",
-        "width": 800,
-        "height": 600
+        "title": "notifie",
+        "width": 400,
+        "height": 300,
+        "center": true,
+        "resizable": true,
+        "visible": false,
+        "decorations": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' ws: wss: http: https:; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
     }
   },
   "bundle": {
@@ -31,5 +40,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "notification": {
+      "all": true
+    }
   }
 }

@@ -1,50 +1,55 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useState, useCallback, useEffect } from 'react';
+import { useWebSocket, NotifyMessage } from './hooks/useWebSocket';
+import { useNotification } from './hooks/useNotification';
+import { Settings } from './components/Settings';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => {
+    return localStorage.getItem('notifie-server-url') || 'ws://localhost:8080/ws';
+  });
+  const { notify } = useNotification();
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  const handleMessage = useCallback((msg: NotifyMessage) => {
+    notify(msg.title, msg.content);
+  }, [notify]);
+
+  const { connected, connect, disconnect } = useWebSocket(serverUrl, handleMessage);
+
+  useEffect(() => {
+    if (serverUrl) {
+      connect();
+    }
+    return () => {
+      disconnect();
+    };
+  }, [serverUrl, connect, disconnect]);
+
+  const handleServerChange = (newUrl: string) => {
+    setServerUrl(newUrl);
+    disconnect();
+    setTimeout(() => connect(), 100);
+  };
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
+      <h1>notifie</h1>
+      <div style={{ marginBottom: '20px' }}>
+        Status:{' '}
+        <span style={{ color: connected ? 'green' : 'red' }}>
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <button onClick={() => setShowSettings(true)}>Settings</button>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+      {showSettings && (
+        <Settings
+          serverUrl={serverUrl}
+          onSave={handleServerChange}
+          onClose={() => setShowSettings(false)}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+      )}
+    </div>
   );
 }
 
