@@ -14,7 +14,6 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/fasthttp/websocket"
-	"github.com/valyala/fasthttp"
 	"github.com/zeroicey/notifie/handler"
 	"github.com/zeroicey/notifie/hub"
 )
@@ -33,12 +32,9 @@ var upgrader = websocket.FastHTTPUpgrader{
 func wsHandler(c fiber.Ctx, h *hub.Hub) error {
 	log.Println("[WS] WebSocket handler called")
 
-	// 类型断言获取 fasthttp context
-	fctx, ok := c.Context().(*fasthttp.RequestCtx)
-	if !ok {
-		log.Printf("[WS] Failed to get fasthttp context, got: %T", c.Context())
-		return fmt.Errorf("failed to get fasthttp context")
-	}
+	// 使用 c.RequestCtx() 获取 fasthttp context
+	fctx := c.RequestCtx()
+	log.Printf("[WS] RequestCtx type: %T", fctx)
 
 	err := upgrader.Upgrade(fctx, func(conn *websocket.Conn) {
 		log.Println("[WS] WebSocket upgrade successful")
