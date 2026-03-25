@@ -23,18 +23,24 @@ var (
 	addr = flag.String("addr", ":8080", "server address")
 )
 
+// WebSocket upgrader 配置
+var upgrader = websocket.FastHTTPUpgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
+		return true // 允许所有来源
+	},
+}
+
 // 自定义 WebSocket 处理函数
 func wsHandler(c fiber.Ctx, h *hub.Hub) error {
-	// 使用 fasthttp upgrader
-	var upgrader = websocket.FastHTTPUpgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
+	log.Println("[WS] WebSocket handler called")
 
 	// 获取 fasthttp context
 	fctx := c.Context().(*fasthttp.RequestCtx)
 
 	err := upgrader.Upgrade(fctx, func(conn *websocket.Conn) {
+		log.Println("[WS] WebSocket upgrade successful")
 		client := &hub.Client{
 			ID:   generateClientID(),
 			Conn: conn,
@@ -48,7 +54,7 @@ func wsHandler(c fiber.Ctx, h *hub.Hub) error {
 	})
 
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("[WS] WebSocket upgrade error: %v", err)
 		return err
 	}
 
@@ -83,7 +89,7 @@ func main() {
 	app.Get("/health", notifyHandler.HandleHealth)
 	app.Post("/api/notify", notifyHandler.HandleNotify)
 
-	// WebSocket 路由 - 使用自定义处理函数
+	// WebSocket 路由
 	app.Get("/ws", func(c fiber.Ctx) error {
 		return wsHandler(c, h)
 	})
