@@ -90,9 +90,15 @@ func (h *Hub) ClientCount() int {
 func (c *Client) ReadPump(h *Hub) {
 	defer func() {
 		h.Unregister <- c
-		c.Conn.Close()
+		if c.Conn != nil {
+			c.Conn.Close()
+		}
 	}()
+
 	for {
+		if c.Conn == nil {
+			break
+		}
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -107,11 +113,21 @@ func (c *Client) ReadPump(h *Hub) {
 
 // WritePump 向客户端写入消息
 func (c *Client) WritePump() {
-	defer c.Conn.Close()
+	defer func() {
+		if c.Conn != nil {
+			c.Conn.Close()
+		}
+	}()
+
 	for {
 		message, ok := <-c.Send
 		if !ok {
-			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			if c.Conn != nil {
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			}
+			return
+		}
+		if c.Conn == nil {
 			return
 		}
 		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
