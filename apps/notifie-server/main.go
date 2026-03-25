@@ -14,7 +14,6 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/fasthttp/websocket"
-	"github.com/valyala/fasthttp"
 	"github.com/zeroicey/notifie/handler"
 	"github.com/zeroicey/notifie/hub"
 )
@@ -22,6 +21,32 @@ import (
 var (
 	addr = flag.String("addr", ":8080", "server address")
 )
+
+// 自定义 WebSocket 处理函数
+func wsHandler(c fiber.Ctx, h *hub.Hub) error {
+	if !websocket.IsWebSocketUpgrade(c) {
+		return c.Status(fiber.StatusUpgradeRequired).SendString("Requires WebSocket upgrade")
+	}
+
+	conn, err := websocket.Upgrade(c.Response().StdWriter(), c.Request(), nil, 1024, 0)
+	if err != nil {
+		log.Printf("WebSocket upgrade error: %v", err)
+		return err
+	}
+
+	client := &hub.Client{
+		ID:   generateClientID(),
+		Conn: conn,
+		Send: make(chan []byte, 256),
+	}
+
+	h.Register <- client
+
+	go client.WritePump()
+	go client.ReadPump(h)
+
+	return nil
+}
 
 func main() {
 	flag.Parse()
@@ -51,39 +76,9 @@ func main() {
 	app.Get("/health", notifyHandler.HandleHealth)
 	app.Post("/api/notify", notifyHandler.HandleNotify)
 
-	// WebSocket 路由
+	// WebSocket 路由 - 使用自定义处理函数
 	app.Get("/ws", func(c fiber.Ctx) error {
-		// 检查是否是 WebSocket 升级请求
-		upgrade := string(c.Request().Header.Peek("Upgrade"))
-		if upgrade != "websocket" {
-			return c.Status(fiber.StatusUpgradeRequired).SendString("Requires WebSocket upgrade")
-		}
-
-		// 使用 fasthttp upgrader
-		var upgrader = websocket.FastHTTPUpgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		}
-
-		err := upgrader.Upgrade(c.Context().(*fasthttp.RequestCtx), func(conn *websocket.Conn) {
-			client := &hub.Client{
-				ID:   generateClientID(),
-				Conn: conn,
-				Send: make(chan []byte, 256),
-			}
-
-			h.Register <- client
-
-			go client.WritePump()
-			go client.ReadPump(h)
-		})
-
-		if err != nil {
-			log.Printf("WebSocket upgrade error: %v", err)
-			return err
-		}
-
-		return nil
+		return wsHandler(c, h)
 	})
 
 	// 优雅关闭
