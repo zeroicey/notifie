@@ -23,6 +23,16 @@ Notifie is a lightweight cross-platform notification system for desktop (Windows
                                     POST /api/notify
 ```
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Client Framework | Tauri 2.x |
+| Frontend Runtime | Bun |
+| Frontend | React 19 |
+| Server | Go + Fiber |
+| WebSocket | gorilla/websocket |
+
 ## Common Commands
 
 ### Client (Tauri + React + Bun)
@@ -39,8 +49,11 @@ bun run tauri dev
 # Build
 bun run tauri build
 
-# Type check
+# Type check only
 bun run build  # runs tsc && vite build
+
+# Verify Rust compiles
+cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
 ### Server (Go + Fiber)
@@ -79,16 +92,25 @@ curl http://localhost:8080/health
 ```
 notifie/
 ├── apps/
-│   ├── notifie-client/       # Tauri desktop app
-│   │   ├── src/              # React frontend
-│   │   └── src-tauri/        # Rust backend
-│   └── notifie-server/       # Go server
-│       ├── main.go           # Entry point
-│       ├── handler/          # HTTP handlers
-│       ├── hub/              # WebSocket hub
-│       └── msg/              # Message types
+│   ├── notifie-client/           # Tauri desktop app
+│   │   ├── src/                  # React frontend
+│   │   │   ├── App.tsx           # Main app component
+│   │   │   ├── hooks/            # Custom hooks (useWebSocket, useNotification)
+│   │   │   └── components/       # UI components
+│   │   ├── src-tauri/            # Rust backend
+│   │   │   ├── Cargo.toml        # Rust dependencies (tauri, plugins)
+│   │   │   ├── tauri.conf.json   # Tauri configuration
+│   │   │   ├── capabilities/     # Plugin permissions
+│   │   │   └── src/lib.rs        # Rust entry with tray setup
+│   │   └── package.json          # JS dependencies
+│   └── notifie-server/           # Go server
+│       ├── main.go               # Entry point, Fiber app setup
+│       ├── handler/              # HTTP handlers (notify.go)
+│       ├── hub/                  # WebSocket hub (client.go)
+│       └── msg/                  # Message types
 └── docs/
-    └── design.md             # Design specification
+    ├── design.md                  # Design specification
+    └── superpowers/               # Implementation plans
 ```
 
 ## API Reference
@@ -97,10 +119,10 @@ notifie/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | / | Health check |
-| GET | /health | Returns client count |
-| POST | /api/notify | Broadcast notification to all clients |
-| GET | /ws | WebSocket endpoint |
+| GET | / | Health check - returns "Notifie Server Running" |
+| GET | /health | Returns JSON with client count |
+| POST | /api/notify | Broadcast notification to all connected clients |
+| GET | /ws | WebSocket endpoint (note: currently disabled in main.go) |
 
 ### WebSocket Message Format
 
@@ -113,9 +135,30 @@ notifie/
 }
 ```
 
+## Client Configuration
+
+### Tauri Plugins Required
+
+- `tauri-plugin-notification` - System native notifications
+- `tauri-plugin-websocket` - WebSocket connections to server
+- `tauri-plugin-opener` - Open external links
+
+### Capabilities (src-tauri/capabilities/default.json)
+
+The client needs these permissions for plugins:
+- `notification:default`, `notification:allow-is-permission-granted`, `notification:allow-request-permission`, `notification:allow-notify`
+- `websocket:default`, `websocket:allow-connect`, `websocket:allow-disconnect`, `websocket:allow-send`, `websocket:allow-add-listener`
+
+### Tray Icon
+
+The Rust backend sets up system tray with:
+- Left-click: Show window
+- Menu items: "Show" and "Quit"
+
 ## Development Notes
 
 - Use worktrees for feature development: `git worktree add .worktrees/<name> -b feature/<name>`
-- Server already implemented and tested
-- Client is work-in-progress (see implementation plan in docs/superpowers/plans/)
-- Tauri plugins needed: notification, websocket, tray-icon
+- Server implementation is stable; client is in-progress
+- Client stores server URL in localStorage (`notifie-server-url` key)
+- Default WebSocket URL: `ws://localhost:8080/ws`
+- Go module path: `github.com/zeroicey/notifie`
