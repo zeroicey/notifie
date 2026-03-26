@@ -8,6 +8,13 @@
 
 **Tech Stack:** Axum 0.8, tokio (full), serde, tower-http
 
+**Additional Dependencies (需要添加到 Cargo.toml):**
+```toml
+chrono = "0.4"      # 时间戳
+uuid = { version = "1", features = ["v4"] }  # 生成客户端 ID
+futures-util = "0.3" # WebSocket 处理
+```
+
 ---
 
 ## File Structure
@@ -90,7 +97,7 @@ impl NotifyMessage {
             msg_type: "notify".to_string(),
             title,
             content,
-            timestamp: Uti::now().timestamp(),
+            timestamp: Uti::now().timestamp(), // Intentional typo - fix in Step 3
         }
     }
 }
@@ -338,7 +345,7 @@ use crate::model::{HealthResponse, NotifyMessage, NotifyRequest, NotifyResponse}
 use axum::{
     body::Body,
     extract::{State, WebSocketUpgrade},
-    http::Response,
+    http::{Response, StatusCode},
     response::IntoResponse,
     routing::get,
     Json, Router,
