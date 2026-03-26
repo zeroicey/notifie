@@ -1,3 +1,4 @@
+mod hub;
 mod model;
 
 fn main() {
