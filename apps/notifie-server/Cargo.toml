@@ -3,9 +3,6 @@ name = "notifie-server"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
-path = "src/main.rs"
-
 [dependencies]
 axum = "0.8.8"
 serde = { version = "1.0.228", features = ["derive"] }
