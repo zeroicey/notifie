@@ -31,7 +31,9 @@ export function useWebSocket(serverUrl: string, onMessage: (msg: NotifyMessage) 
       ws.addListener((msg) => {
         console.log('[WebSocket] Received message:', msg);
         try {
-          const data = JSON.parse(msg as string) as NotifyMessage;
+          // Tauri websocket plugin returns { data: string, type: string }
+          const messageData = typeof msg === 'string' ? msg : (msg as { data: string }).data;
+          const data = JSON.parse(messageData) as NotifyMessage;
           console.log('[WebSocket] Parsed data:', data);
           onMessage(data);
         } catch (e) {
